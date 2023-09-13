@@ -11,7 +11,9 @@ import { writeTextFile } from '@tauri-apps/api/fs';
 import { save } from '@tauri-apps/api/dialog';
 import { useToast } from "@/components/ui/use-toast";
 
-import { Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes";
+
+import { Moon, Sun } from "lucide-react";
 
 import {
   Menubar,
