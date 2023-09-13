@@ -9,7 +9,7 @@ import Link from "next/link"
 import { exit } from '@tauri-apps/api/process';
 import { writeTextFile } from '@tauri-apps/api/fs';
 import { save } from '@tauri-apps/api/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/components/ui/use-toast";
 
 import {
   Menubar,
@@ -43,6 +43,7 @@ function getDate() {
 }
 
 const App = () => {
+  const { toast } = useToast()
 
   let viewingMarkdown = false;
 
@@ -54,12 +55,23 @@ const App = () => {
 
   function showValue() {
     console.log(editorRef.current.getValue());
+    toast({
+      title: "Editor Contents",
+      description: "Check the console for the editor contents",
+    })
   }
 
   async function onExit() {
     await exit(0);
     console.log("exit");
   }
+
+  // async function onSave() {
+  //   const filePath = ""
+
+  //   console.log(filePath);
+  //   await writeTextFile(filePath, editorRef.current.getValue());
+  // }
 
   async function onSaveAs() {
     const filePath = await save({
@@ -85,7 +97,7 @@ const App = () => {
   }
 
   function switchScreen() {
-    if(viewingMarkdown) {
+    if (viewingMarkdown) {
       viewingMarkdown = false;
     }
     else {
@@ -145,7 +157,7 @@ const App = () => {
           </div>
           <div>
             <Editor
-              height="80vh"
+              height="93vh"
               defaultLanguage="markdown"
               defaultValue="# Hello, world!"
               onMount={handleEditorDidMount}
