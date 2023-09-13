@@ -11,6 +11,8 @@ import { writeTextFile } from '@tauri-apps/api/fs';
 import { save } from '@tauri-apps/api/dialog';
 import { useToast } from "@/components/ui/use-toast";
 
+import { Moon, Sun } from "lucide-react"
+
 import {
   Menubar,
   MenubarCheckboxItem,
@@ -43,7 +45,8 @@ function getDate() {
 }
 
 const App = () => {
-  const { toast } = useToast()
+  const { setTheme } = useTheme()
+  const { toast } = useToast()  
 
   let viewingMarkdown = false;
 
