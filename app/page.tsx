@@ -1,19 +1,17 @@
 //shadcnui
 
-'use client'
+"use client"
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import Editor, { Monaco } from "@monaco-editor/react";
 import Link from "next/link"
 
 import { exit } from '@tauri-apps/api/process';
-import { writeTextFile } from '@tauri-apps/api/fs';
+import { writeTextFile, exists, createDir } from '@tauri-apps/api/fs';
 import { save } from '@tauri-apps/api/dialog';
+import { documentDir } from '@tauri-apps/api/path';
+
 import { useToast } from "@/components/ui/use-toast";
-
-import { useTheme } from "next-themes";
-
-import { Moon, Sun } from "lucide-react";
 
 import {
   Menubar,
@@ -31,12 +29,27 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar"
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { cn } from "@/lib/utils"
 import { get } from "http";
 import { editor } from "monaco-editor";
-import { constants } from "perf_hooks";
+import { constants, monitorEventLoopDelay } from "perf_hooks";
+
+type Entry = {
+  title: string;
+  content: string;
+  date: string;
+}
 
 function getDate() {
   const today = new Date();
@@ -47,19 +60,27 @@ function getDate() {
 }
 
 const App = () => {
-  const { setTheme } = useTheme()
-  const { toast } = useToast()  
 
-  let viewingMarkdown = false;
+  const { toast } = useToast()
 
-  let editorRef = useRef(Editor);
+  let editorRef = useRef(editor);
 
   function handleEditorDidMount(editor: any, monaco: Monaco) {
     editorRef.current = editor;
+
+    import('monaco-themes/themes/Twilight.json')
+      .then(data => {
+        monaco.editor.defineTheme('twilight', data);
+        monaco.editor.setTheme('twilight');
+      })
+  }
+
+  function getEditorContents() {
+    return editorRef.current.getValue();
   }
 
   function showValue() {
-    console.log(editorRef.current.getValue());
+    console.log(getEditorContents());
     toast({
       title: "Editor Contents",
       description: "Check the console for the editor contents",
@@ -68,15 +89,30 @@ const App = () => {
 
   async function onExit() {
     await exit(0);
-    console.log("exit");
   }
 
-  // async function onSave() {
-  //   const filePath = ""
+  async function onSave() {
+    const documentDirPath = (await documentDir()).replace(/\\/g, '/');
+    if (!(await exists(documentDirPath + "deardiary/"))) {
+      await createDir(documentDirPath + "deardiary/");
+    }
+    let filePath = documentDirPath + "deardiary/" + getDate();
+    console.log(filePath);
+    let fileName = "diary entry for " + getDate();
 
-  //   console.log(filePath);
-  //   await writeTextFile(filePath, editorRef.current.getValue());
-  // }
+    let fileContents: Entry = {
+      title: fileName,
+      content: getEditorContents(),
+      date: getDate(),
+    }
+
+    await writeTextFile(filePath + ".json", JSON.stringify(fileContents));
+    toast({
+      title: "Entry Added",
+      description: filePath,
+    })
+
+  }
 
   async function onSaveAs() {
     const filePath = await save({
@@ -85,13 +121,11 @@ const App = () => {
         extensions: ['txt']
       }]
     });
-    console.log(filePath);
-    await writeTextFile(filePath, editorRef.current.getValue());
-    console.log("save as");
-  }
-
-  function getEditorContents() {
-    return editorRef.current.getValue();
+    await writeTextFile(filePath, getEditorContents());
+    toast({
+      title: "Entry Exported",
+      description: filePath,
+    })
   }
 
   function renderMarkdown() {
@@ -101,82 +135,61 @@ const App = () => {
 
   }
 
-  function switchScreen() {
-    if (viewingMarkdown) {
-      viewingMarkdown = false;
-    }
-    else {
-      viewingMarkdown = true;
-    }
-    console.log(viewingMarkdown);
-    renderUI();
-  }
-
-  function renderUI() {
-    console.log('render called');
-    if (viewingMarkdown == true) {
-      return (
-        <div>
-          <p>hello</p>
-        </div>
-      )
-    }
-    else {
-      return (
-        <div className="overflow-clip">
-          <div>
-            <Menubar>
-              <MenubarMenu>
-                <MenubarTrigger>File</MenubarTrigger>
-                <MenubarContent>
-                  <MenubarItem>
-                    <button onClick={onSaveAs}>Save As</button>
-                  </MenubarItem>
-                  <MenubarSeparator />
-                  <MenubarItem>
-                    <button onClick={onExit}>Quit</button>
-                  </MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger>View</MenubarTrigger>
-                <MenubarContent>
-                  <MenubarItem>
-                    <button onClick={switchScreen}>
-                      {viewingMarkdown ? "View Editor" : "View Markdown"}
-                    </button>
-                  </MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger>Dev</MenubarTrigger>
-                <MenubarContent>
-                  <MenubarItem>
-                    <button onClick={showValue}>
-                      Print Editor Contents To Console
-                    </button>
-                  </MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-            </Menubar>
-          </div>
-          <div>
-            <Editor
-              height="93vh"
-              defaultLanguage="markdown"
-              defaultValue="# Hello, world!"
-              onMount={handleEditorDidMount}
-            />
-          </div>
-        </div>
-      );
-    }
-  }
+  const options: Monaco.IStandaloneEditorConstructionOptions = {
+    readOnly: false,
+    minimap: { enabled: false },
+  };
 
   return (
-    <div>
-      {renderUI()}
-    </div>
+    < div className="overflow-clip" >
+      <div>
+        <Menubar>
+          <MenubarMenu>
+            <MenubarTrigger>File</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem>
+                <button onClick={onSave}>Add Entry</button>
+              </MenubarItem>
+              <MenubarItem>
+                <button onClick={onSaveAs}>Export</button>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem>
+                <button onClick={onExit}>Quit</button>
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+          <MenubarMenu>
+            <MenubarTrigger>View</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem>
+                <Link href="/viewer">Launch Viewer</Link>
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+          <MenubarMenu>
+            <MenubarTrigger>Dev</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem>
+                <button onClick={showValue}>
+                  Print Editor Contents To Console
+                </button>
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+        </Menubar>
+      </div>
+      <div>
+        <Editor
+          height="93vh"
+          theme="vs-dark"
+          options={options}
+          defaultLanguage="markdown"
+          defaultValue="# Hello, world!"
+          onMount={handleEditorDidMount}
+        />
+      </div>
+    </div >
   );
 
 };
