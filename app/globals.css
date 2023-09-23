@@ -57,3 +57,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+html {
+  overflow: hidden; /* Hide scrollbars */
+}
+
+.markdown > * {
+  all: revert;
+}

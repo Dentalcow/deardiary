@@ -97,7 +97,7 @@ const App = () => {
       await createDir(documentDirPath + "deardiary/");
     }
     let filePath = documentDirPath + "deardiary/" + getDate();
-    console.log(filePath);
+    console.log(filePath);  
     let fileName = "diary entry for " + getDate();
 
     let fileContents: Entry = {
@@ -128,20 +128,13 @@ const App = () => {
     })
   }
 
-  function renderMarkdown() {
-    const contents = getEditorContents();
-    console.log(contents);
-    // show markdown in new window
-
-  }
-
   const options: Monaco.IStandaloneEditorConstructionOptions = {
     readOnly: false,
     minimap: { enabled: false },
   };
 
   return (
-    < div className="overflow-clip" >
+    <div>
       <div>
         <Menubar>
           <MenubarMenu>
